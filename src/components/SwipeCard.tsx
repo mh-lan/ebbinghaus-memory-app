@@ -84,6 +84,24 @@ export default function SwipeCard({ card, onSwipe }: Props) {
     }
   };
 
+  const handleRemember = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await controls.start({ 
+      x: -window.innerWidth,
+      scale: 1.1, 
+      filter: "blur(12px)", 
+      opacity: 0, 
+      transition: { duration: 0.3, ease: "easeOut" } 
+    });
+    onSwipe('left');
+  };
+
+  const handleForget = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await controls.start({ x: window.innerWidth, opacity: 0, transition: { duration: 0.3 } });
+    onSwipe('right');
+  };
+
   return (
     <div className="card-container">
       <motion.div
@@ -118,6 +136,13 @@ export default function SwipeCard({ card, onSwipe }: Props) {
           <div className="tap-hint">点击显示答案</div>
         )}
       </motion.div>
+      
+      {showBack && (
+        <div className="action-buttons">
+          <button onClick={handleRemember} className="btn-remember">记住了</button>
+          <button onClick={handleForget} className="btn-forget">没记住</button>
+        </div>
+      )}
     </div>
   );
 }

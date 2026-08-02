@@ -4,6 +4,7 @@
   perspective: 1000px;
   position: absolute;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
 }
@@ -116,4 +117,40 @@
   color: var(--text-secondary);
   opacity: 0.6;
   pointer-events: none;
+}
+
+.action-buttons {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 90%;
+  max-width: 400px;
+}
+
+.btn-remember, .btn-forget {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.1s;
+}
+
+.btn-remember:active, .btn-forget:active {
+  transform: scale(0.96);
+}
+
+.btn-remember {
+  background: var(--success);
+  color: white;
+}
+
+.btn-forget {
+  background: var(--card-bg);
+  color: var(--danger);
+  border: 1px solid rgba(244, 63, 94, 0.2);
 }

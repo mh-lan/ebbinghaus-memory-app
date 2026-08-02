@@ -1,0 +1,1 @@
+{"name":"艾宾浩斯记忆","short_name":"记忆","description":"基于艾宾浩斯遗忘曲线的极简记忆应用","start_url":"./","display":"standalone","background_color":"#0b0f19","theme_color":"#0b0f19","lang":"en","scope":"./","icons":[{"src":"/vite.svg","sizes":"192x192","type":"image/svg+xml"},{"src":"/vite.svg","sizes":"512x512","type":"image/svg+xml"}]}

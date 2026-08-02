@@ -14,8 +14,8 @@ export default function Settings() {
   const handleImportDefault = async () => {
     try {
       setSyncing(true);
-      setMessage('正在加载外网更新知识点...');
-      const response = await fetch('/default_kb.md');
+      setMessage('正在加载 GitHub 云端知识点...');
+      const response = await fetch('https://raw.githubusercontent.com/mh-lan/ebbinghaus-memory-app/main/public/default_kb.md');
       if (!response.ok) throw new Error('Failed to fetch');
       const text = await response.text();
       const newCards = parseMarkdown(text, '内置精选');
@@ -26,7 +26,7 @@ export default function Settings() {
         setMessage('未能解析出知识点');
       }
     } catch (e) {
-      setMessage('导入失败');
+      setMessage('导入失败，请检查网络链接是否可达（Github Raw 可能需要代理加载）');
     } finally {
       setSyncing(false);
     }
@@ -129,16 +129,19 @@ export default function Settings() {
       )}
 
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>🚀 精选职场心理学题库</h3>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-          一键导入“外网更新”文件夹中每日推送的关于管理、职场与心理学的零散知识点，共收录数十条精选内容。
+        <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>🚀 精选职场心理学题库 (GitHub 源)</h3>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', wordBreak: 'break-all', lineHeight: '1.5' }}>
+          从以下 GitHub 链接拉取我们预设的管理、职场与心理学知识点：<br/>
+          <a href="https://raw.githubusercontent.com/mh-lan/ebbinghaus-memory-app/main/public/default_kb.md" target="_blank" rel="noreferrer" style={{color: 'var(--accent)', textDecoration: 'underline'}}>
+            https://raw.githubusercontent.com/mh-lan/ebbinghaus-memory-app/main/public/default_kb.md
+          </a>
         </p>
         <button 
           onClick={handleImportDefault}
           disabled={syncing}
           style={{ width: '100%', padding: '12px', background: 'var(--success)', color: 'white', borderRadius: '12px', fontWeight: '600', boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.39)' }}
         >
-          {syncing ? '导入中...' : '一键导入精华知识库'}
+          {syncing ? '导入中...' : '一键导入 GitHub 精华知识库'}
         </button>
       </div>
 

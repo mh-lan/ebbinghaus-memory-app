@@ -62,9 +62,14 @@ export default function SwipeCard({ card, onSwipe }: Props) {
   const handleDragEnd = async (_event: any, info: any) => {
     const offset = info.offset.y;
     const velocity = info.velocity.y;
-    // 极致优化：只需移动 30 像素，或者极小的拨动速度 (150)，都会判定成功
-    const isDownSwipe = offset > 30 || velocity > 150;
-    const isUpSwipe = offset < -30 || velocity < -150;
+    
+    // 使用 Swipe Power 算法结合静态距离阈值
+    // 既保证了快速轻微拨动能触发（高速度），又防止了小幅度的误触（低速度+小距离）
+    const swipePower = Math.abs(offset) * velocity;
+    const swipeConfidenceThreshold = 8000;
+
+    const isDownSwipe = offset > 80 || swipePower > swipeConfidenceThreshold;
+    const isUpSwipe = offset < -80 || swipePower < -swipeConfidenceThreshold;
 
     if (isDownSwipe) {
       // 下滑：没记住

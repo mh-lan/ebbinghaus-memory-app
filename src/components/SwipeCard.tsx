@@ -7,20 +7,20 @@ import './SwipeCard.css';
 
 interface Props {
   card: CardType;
-  onSwipe: (direction: 'left' | 'right') => void;
+  onSwipe: (direction: 'up' | 'down') => void;
 }
 
 export default function SwipeCard({ card, onSwipe }: Props) {
   const [showBack, setShowBack] = useState(false);
-  const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const controls = useAnimation();
 
   // Reset state when card changes
   useEffect(() => {
     setShowBack(false);
-    x.set(0);
-    controls.set({ x: 0, rotate: 0, scale: 1, filter: "blur(0px)", opacity: 1 });
-  }, [card, x, controls]);
+    y.set(0);
+    controls.set({ y: 0, rotate: 0, scale: 1, filter: "blur(0px)", opacity: 1 });
+  }, [card, y, controls]);
 
   // Keyboard support for desktop
   useEffect(() => {
@@ -31,22 +31,22 @@ export default function SwipeCard({ card, onSwipe }: Props) {
       }
       
       if (showBack) {
-        if (e.code === 'ArrowRight') {
+        if (e.code === 'ArrowDown') {
           e.preventDefault();
-          // 右滑：没记住
-          await controls.start({ x: 500, opacity: 0, transition: { duration: 0.3 } });
-          onSwipe('right'); 
-        } else if (e.code === 'ArrowLeft') {
+          // 下滑：没记住
+          await controls.start({ y: window.innerHeight, opacity: 0, transition: { duration: 0.3 } });
+          onSwipe('down'); 
+        } else if (e.code === 'ArrowUp') {
           e.preventDefault();
-          // 左滑：记住了
+          // 上滑：记住了
           await controls.start({ 
-            x: -200,
+            y: -window.innerHeight,
             scale: 1.1, 
             filter: "blur(12px)", 
             opacity: 0, 
             transition: { duration: 0.3, ease: "easeOut" } 
           });
-          onSwipe('left');
+          onSwipe('up');
         }
       }
     };
@@ -57,58 +57,58 @@ export default function SwipeCard({ card, onSwipe }: Props) {
     };
   }, [showBack, controls, onSwipe]);
 
-  const rotate = useTransform(x, [-200, 200], [-10, 10]);
+  const rotate = useTransform(y, [-200, 200], [-10, 10]);
 
   const handleDragEnd = async (_event: any, info: any) => {
-    const offset = info.offset.x;
-    const velocity = info.velocity.x;
-    const isRightSwipe = offset > 80 || velocity > 400;
-    const isLeftSwipe = offset < -80 || velocity < -400;
+    const offset = info.offset.y;
+    const velocity = info.velocity.y;
+    const isDownSwipe = offset > 80 || velocity > 400;
+    const isUpSwipe = offset < -80 || velocity < -400;
 
-    if (isRightSwipe) {
-      // 右滑：没记住
-      await controls.start({ x: window.innerWidth, opacity: 0, transition: { duration: 0.3 } });
-      onSwipe('right');
-    } else if (isLeftSwipe) {
-      // 左滑：记住了
+    if (isDownSwipe) {
+      // 下滑：没记住
+      await controls.start({ y: window.innerHeight, opacity: 0, transition: { duration: 0.3 } });
+      onSwipe('down');
+    } else if (isUpSwipe) {
+      // 上滑：记住了
       await controls.start({ 
-        x: -window.innerWidth,
+        y: -window.innerHeight,
         scale: 1.1, 
         filter: "blur(12px)", 
         opacity: 0, 
         transition: { duration: 0.3, ease: "easeOut" } 
       });
-      onSwipe('left'); 
+      onSwipe('up'); 
     } else {
-      controls.start({ x: 0, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 20 } });
+      controls.start({ y: 0, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 20 } });
     }
   };
 
   const handleRemember = async (e: React.MouseEvent) => {
     e.stopPropagation();
     await controls.start({ 
-      x: -window.innerWidth,
+      y: -window.innerHeight,
       scale: 1.1, 
       filter: "blur(12px)", 
       opacity: 0, 
       transition: { duration: 0.3, ease: "easeOut" } 
     });
-    onSwipe('left');
+    onSwipe('up');
   };
 
   const handleForget = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await controls.start({ x: window.innerWidth, opacity: 0, transition: { duration: 0.3 } });
-    onSwipe('right');
+    await controls.start({ y: window.innerHeight, opacity: 0, transition: { duration: 0.3 } });
+    onSwipe('down');
   };
 
   return (
     <div className="card-container">
       <motion.div
         className="card"
-        drag={showBack ? "x" : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        style={{ x, rotate }}
+        drag={showBack ? "y" : false}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        style={{ y, rotate }}
         animate={controls}
         onDragEnd={handleDragEnd}
         onClick={() => {

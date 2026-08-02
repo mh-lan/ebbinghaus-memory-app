@@ -41,13 +41,13 @@ export default function Review() {
     }
   }, [selectedTag, allReviewCards]);
 
-  const handleSwipe = async (direction: 'left' | 'right') => {
+  const handleSwipe = async (direction: 'up' | 'down') => {
     if (cardsToReview.length === 0) return;
     
     const currentCard = cardsToReview[0];
     let updatedCard: Card;
 
-    if (direction === 'right') {
+    if (direction === 'down') {
       const result = calculateForget();
       updatedCard = { ...currentCard, ...result };
     } else {

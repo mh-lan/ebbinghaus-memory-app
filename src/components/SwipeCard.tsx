@@ -60,15 +60,19 @@ export default function SwipeCard({ card, onSwipe }: Props) {
   const rotate = useTransform(x, [-200, 200], [-10, 10]);
 
   const handleDragEnd = async (_event: any, info: any) => {
-    const threshold = 100;
-    if (info.offset.x > threshold) {
+    const offset = info.offset.x;
+    const velocity = info.velocity.x;
+    const isRightSwipe = offset > 80 || velocity > 400;
+    const isLeftSwipe = offset < -80 || velocity < -400;
+
+    if (isRightSwipe) {
       // 右滑：没记住
-      await controls.start({ x: 500, opacity: 0, transition: { duration: 0.3 } });
+      await controls.start({ x: window.innerWidth, opacity: 0, transition: { duration: 0.3 } });
       onSwipe('right');
-    } else if (info.offset.x < -threshold) {
+    } else if (isLeftSwipe) {
       // 左滑：记住了
       await controls.start({ 
-        x: -200,
+        x: -window.innerWidth,
         scale: 1.1, 
         filter: "blur(12px)", 
         opacity: 0, 

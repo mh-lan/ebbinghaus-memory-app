@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { db } from '../utils/db';
 import { parseMarkdown } from '../utils/markdown';
-import { syncWithWebDAV } from '../utils/sync';
 
 export default function Settings() {
   const [markdown, setMarkdown] = useState('');

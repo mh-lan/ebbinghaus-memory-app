@@ -23,7 +23,7 @@
   border: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 .card-content {

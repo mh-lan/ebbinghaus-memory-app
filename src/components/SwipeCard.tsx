@@ -12,15 +12,15 @@ interface Props {
 
 export default function SwipeCard({ card, onSwipe }: Props) {
   const [showBack, setShowBack] = useState(false);
-  const y = useMotionValue(0);
+  const x = useMotionValue(0);
   const controls = useAnimation();
 
   // Reset state when card changes
   useEffect(() => {
     setShowBack(false);
-    y.set(0);
-    controls.set({ y: 0, rotate: 0, scale: 1, filter: "blur(0px)", opacity: 1 });
-  }, [card, y, controls]);
+    x.set(0);
+    controls.set({ x: 0, rotate: 0, scale: 1, filter: "blur(0px)", opacity: 1 });
+  }, [card, x, controls]);
 
   // Keyboard support for desktop
   useEffect(() => {
@@ -31,22 +31,22 @@ export default function SwipeCard({ card, onSwipe }: Props) {
       }
       
       if (showBack) {
-        if (e.code === 'ArrowDown') {
+        if (e.code === 'ArrowRight') {
           e.preventDefault();
-          // 下滑：没记住
-          await controls.start({ y: 500, opacity: 0, transition: { duration: 0.3 } });
-          onSwipe('left'); // keep passing 'left'/'right' to parent or we can rename parent interface
-        } else if (e.code === 'ArrowUp') {
+          // 右滑：没记住
+          await controls.start({ x: 500, opacity: 0, transition: { duration: 0.3 } });
+          onSwipe('right'); 
+        } else if (e.code === 'ArrowLeft') {
           e.preventDefault();
-          // 上滑：记住了
+          // 左滑：记住了
           await controls.start({ 
-            y: -200,
+            x: -200,
             scale: 1.1, 
             filter: "blur(12px)", 
             opacity: 0, 
             transition: { duration: 0.3, ease: "easeOut" } 
           });
-          onSwipe('right');
+          onSwipe('left');
         }
       }
     };
@@ -57,26 +57,26 @@ export default function SwipeCard({ card, onSwipe }: Props) {
     };
   }, [showBack, controls, onSwipe]);
 
-  const rotate = useTransform(y, [-200, 200], [-10, 10]);
+  const rotate = useTransform(x, [-200, 200], [-10, 10]);
 
   const handleDragEnd = async (_event: any, info: any) => {
     const threshold = 100;
-    if (info.offset.y > threshold) {
-      // 下滑：没记住
-      await controls.start({ y: 500, opacity: 0, transition: { duration: 0.3 } });
-      onSwipe('left'); // map 'left' to forgot
-    } else if (info.offset.y < -threshold) {
-      // 上滑：记住了
+    if (info.offset.x > threshold) {
+      // 右滑：没记住
+      await controls.start({ x: 500, opacity: 0, transition: { duration: 0.3 } });
+      onSwipe('right');
+    } else if (info.offset.x < -threshold) {
+      // 左滑：记住了
       await controls.start({ 
-        y: -200,
+        x: -200,
         scale: 1.1, 
         filter: "blur(12px)", 
         opacity: 0, 
         transition: { duration: 0.3, ease: "easeOut" } 
       });
-      onSwipe('right'); // map 'right' to remember
+      onSwipe('left'); 
     } else {
-      controls.start({ y: 0, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 20 } });
+      controls.start({ x: 0, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 20 } });
     }
   };
 
@@ -84,9 +84,9 @@ export default function SwipeCard({ card, onSwipe }: Props) {
     <div className="card-container">
       <motion.div
         className="card"
-        drag={showBack ? "y" : false}
-        dragConstraints={{ top: 0, bottom: 0 }}
-        style={{ y, rotate }}
+        drag={showBack ? "x" : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        style={{ x, rotate }}
         animate={controls}
         onDragEnd={handleDragEnd}
         onClick={() => {

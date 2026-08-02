@@ -47,7 +47,7 @@ export default function Review() {
     const currentCard = cardsToReview[0];
     let updatedCard: Card;
 
-    if (direction === 'left') {
+    if (direction === 'right') {
       const result = calculateForget();
       updatedCard = { ...currentCard, ...result };
     } else {

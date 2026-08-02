@@ -1,35 +1,117 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../utils/db';
 import { parseMarkdown } from '../utils/markdown';
+import { FiCheckCircle, FiCircle, FiDownloadCloud, FiPlus, FiTrash2 } from 'react-icons/fi';
+
+interface KnowledgeBank {
+  id: string;
+  name: string;
+  url: string;
+}
+
+const DEFAULT_BANKS: KnowledgeBank[] = [
+  {
+    id: 'default_kb',
+    name: '职场管理心理学题库 (GitHub内置)',
+    url: 'https://raw.githubusercontent.com/mh-lan/ebbinghaus-memory-app/main/public/default_kb.md'
+  }
+];
 
 export default function Settings() {
-  const [markdown, setMarkdown] = useState('');
-  const [message, setMessage] = useState('');
+  const [banks, setBanks] = useState<KnowledgeBank[]>([]);
+  const [importedTags, setImportedTags] = useState<string[]>([]);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   
-  // Network sync settings (Gitee/Github raw)
-  const [networkUrl, setNetworkUrl] = useState(localStorage.getItem('network_url') || '');
-  const [networkSource, setNetworkSource] = useState(localStorage.getItem('network_source') || 'Gitee');
-  const [syncing, setSyncing] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  const [message, setMessage] = useState('');
+  const [markdown, setMarkdown] = useState('');
 
-  const handleImportDefault = async () => {
+  useEffect(() => {
+    const saved = localStorage.getItem('knowledge_banks');
+    if (saved) {
+      setBanks(JSON.parse(saved));
+    } else {
+      setBanks(DEFAULT_BANKS);
+      localStorage.setItem('knowledge_banks', JSON.stringify(DEFAULT_BANKS));
+    }
+    loadImportedTags();
+  }, []);
+
+  const loadImportedTags = async () => {
+    const cards = await db.getCards();
+    const tags = new Set<string>();
+    cards.forEach(c => {
+      if (c.tags) c.tags.forEach(t => tags.add(t));
+    });
+    setImportedTags(Array.from(tags));
+  };
+
+  const saveBanks = (newBanks: KnowledgeBank[]) => {
+    setBanks(newBanks);
+    localStorage.setItem('knowledge_banks', JSON.stringify(newBanks));
+  };
+
+  const handleAddBank = () => {
+    if (!newName.trim() || !newUrl.trim()) {
+      setMessage('请输入完整的题库名称和路径');
+      return;
+    }
+    const newBank: KnowledgeBank = { id: Date.now().toString(), name: newName.trim(), url: newUrl.trim() };
+    saveBanks([...banks, newBank]);
+    setNewName('');
+    setNewUrl('');
+    setMessage(`已添加题库: ${newBank.name}`);
+  };
+
+  const handleRemoveBank = (id: string) => {
+    if (window.confirm('确定要从列表中移除该题库吗？（本地已导入的知识点不会被删除）')) {
+      saveBanks(banks.filter(b => b.id !== id));
+    }
+  };
+
+  const handleSyncBank = async (bank: KnowledgeBank) => {
     try {
-      setSyncing(true);
-      setMessage('正在加载 GitHub 云端知识点...');
-      const response = await fetch('https://raw.githubusercontent.com/mh-lan/ebbinghaus-memory-app/main/public/default_kb.md');
-      if (!response.ok) throw new Error('Failed to fetch');
+      setSyncingId(bank.id);
+      setMessage(`正在拉取更新：${bank.name}...`);
+      const response = await fetch(bank.url);
+      if (!response.ok) throw new Error('网络请求失败');
       const text = await response.text();
-      const newCards = parseMarkdown(text, '内置精选');
+      const newCards = parseMarkdown(text, bank.name);
       if (newCards.length > 0) {
         await db.addCards(newCards);
-        setMessage(`成功导入 ${newCards.length} 个《外网更新》职场心理学知识点！`);
+        setMessage(`成功更新了 ${newCards.length} 个来自【${bank.name}】的知识点！重复项已覆盖且进度保留。`);
+        await loadImportedTags();
       } else {
-        setMessage('未能解析出知识点');
+        setMessage('链接未包含有效的知识点');
       }
     } catch (e) {
-      setMessage('导入失败，请检查网络链接是否可达（Github Raw 可能需要代理加载）');
+      setMessage(`更新失败，请检查网络链接（Github Raw 可能需要代理）`);
     } finally {
-      setSyncing(false);
+      setSyncingId(null);
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        const sourceName = file.name.replace(/\.[^/.]+$/, "");
+        const newCards = parseMarkdown(text, sourceName);
+        if (newCards.length > 0) {
+          await db.addCards(newCards);
+          setMessage(`成功从本地文件 [${file.name}] 导入了 ${newCards.length} 个知识点！`);
+          await loadImportedTags();
+        } else {
+          setMessage('该文件未包含有效的 Markdown 知识点');
+        }
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleImport = async () => {
@@ -51,60 +133,10 @@ export default function Settings() {
     }
   };
 
-  const handleNetworkSync = async () => {
-    if (!networkUrl || !networkSource) {
-      setMessage('请填写完整的网络路径和来源标签');
-      return;
-    }
-    
-    localStorage.setItem('network_url', networkUrl);
-    localStorage.setItem('network_source', networkSource);
-    
-    try {
-      setSyncing(true);
-      setMessage('正在从网络同步...');
-      const response = await fetch(networkUrl);
-      if (!response.ok) throw new Error('网络请求失败');
-      const text = await response.text();
-      const newCards = parseMarkdown(text, networkSource);
-      if (newCards.length > 0) {
-        await db.addCards(newCards);
-        setMessage(`成功从 ${networkSource} 同步了 ${newCards.length} 个知识点！`);
-      } else {
-        setMessage('该链接未包含有效的 Markdown 知识点（需使用 # 标题）');
-      }
-    } catch (e) {
-      setMessage('同步失败，请检查网络链接是否支持跨域访问');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target?.result as string;
-      if (text) {
-        // 使用文件名作为来源标签（去掉扩展名）
-        const sourceName = file.name.replace(/\.[^/.]+$/, "");
-        const newCards = parseMarkdown(text, sourceName);
-        if (newCards.length > 0) {
-          await db.addCards(newCards);
-          setMessage(`成功从本地文件 [${file.name}] 导入了 ${newCards.length} 个知识点！`);
-        } else {
-          setMessage('该文件未包含有效的 Markdown 知识点');
-        }
-      }
-    };
-    reader.readAsText(file);
-  };
-
   const handleClear = async () => {
     if (window.confirm('确定要清空所有数据吗？此操作不可恢复。')) {
       await db.clearAll();
+      setImportedTags([]);
       setMessage('数据已清空');
     }
   };
@@ -115,12 +147,13 @@ export default function Settings() {
     marginBottom: '10px',
     borderRadius: '8px',
     border: '1px solid rgba(0,0,0,0.1)',
-    background: 'rgba(255,255,255,0.5)'
+    background: 'rgba(255,255,255,0.5)',
+    fontSize: '14px'
   };
 
   return (
-    <div className="page-container" style={{ padding: '20px' }}>
-      <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>设置与同步</h2>
+    <div className="page-container" style={{ padding: '20px', paddingBottom: '80px' }}>
+      <h2 style={{ marginBottom: '20px', fontSize: '24px' }}>知识库管理</h2>
       
       {message && (
         <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--card-bg)', borderRadius: '8px', color: 'var(--accent)', fontWeight: 'bold' }}>
@@ -128,46 +161,72 @@ export default function Settings() {
         </div>
       )}
 
+      {/* 网络题库模块 */}
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>🚀 精选职场心理学题库 (GitHub 源)</h3>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', wordBreak: 'break-all', lineHeight: '1.5' }}>
-          从以下 GitHub 链接拉取我们预设的管理、职场与心理学知识点：<br/>
-          <a href="https://raw.githubusercontent.com/mh-lan/ebbinghaus-memory-app/main/public/default_kb.md" target="_blank" rel="noreferrer" style={{color: 'var(--accent)', textDecoration: 'underline'}}>
-            https://raw.githubusercontent.com/mh-lan/ebbinghaus-memory-app/main/public/default_kb.md
-          </a>
+        <h3 style={{ marginBottom: '16px', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FiDownloadCloud /> 网络端题库同步
+        </h3>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+          在此统一管理所有网络题库。每次点击导入/更新都会从原网址抓取最新数据，自动覆盖变更内容并**保留您的复习时间记录**。
         </p>
-        <button 
-          onClick={handleImportDefault}
-          disabled={syncing}
-          style={{ width: '100%', padding: '12px', background: 'var(--success)', color: 'white', borderRadius: '12px', fontWeight: '600', boxShadow: '0 4px 14px 0 rgba(16, 185, 129, 0.39)' }}
-        >
-          {syncing ? '导入中...' : '一键导入 GitHub 精华知识库'}
-        </button>
+        
+        {/* 题库列表 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+          {banks.map(bank => {
+            const isImported = importedTags.includes(bank.name);
+            return (
+              <div key={bank.id} style={{ background: 'rgba(255,255,255,0.4)', borderRadius: '12px', padding: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div style={{ fontWeight: '600', fontSize: '15px', color: 'var(--text-primary)' }}>{bank.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: isImported ? 'var(--success)' : 'var(--text-secondary)' }}>
+                    {isImported ? <FiCheckCircle /> : <FiCircle />}
+                    {isImported ? '已导入' : '未导入'}
+                  </div>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--accent)', wordBreak: 'break-all', marginBottom: '12px', opacity: 0.8 }}>
+                  {bank.url}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={() => handleSyncBank(bank)}
+                    disabled={syncingId !== null}
+                    style={{ flex: 1, padding: '8px', background: 'var(--accent)', color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' }}
+                  >
+                    {syncingId === bank.id ? '更新中...' : '导入 / 更新'}
+                  </button>
+                  {bank.id !== 'default_kb' && (
+                    <button 
+                      onClick={() => handleRemoveBank(bank.id)}
+                      style={{ padding: '8px 12px', background: 'rgba(244, 63, 94, 0.1)', color: 'var(--danger)', borderRadius: '8px' }}
+                    >
+                      <FiTrash2 />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 添加题库 */}
+        <div style={{ borderTop: '1px dashed rgba(0,0,0,0.1)', paddingTop: '16px' }}>
+          <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--text-primary)' }}>+ 添加自定义题库</h4>
+          <input style={inputStyle} type="text" placeholder="题库名称 (将作为标签)" value={newName} onChange={e => setNewName(e.target.value)} />
+          <input style={inputStyle} type="text" placeholder="网络 Raw URL (如 Gitee/Github Raw)" value={newUrl} onChange={e => setNewUrl(e.target.value)} />
+          <button 
+            onClick={handleAddBank}
+            style={{ width: '100%', padding: '10px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent)', borderRadius: '8px', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+          >
+            <FiPlus /> 添加到列表
+          </button>
+        </div>
       </div>
 
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>🌐 网络端自动同步 (如 Gitee)</h3>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-          输入可通过浏览器直接访问的 Raw 链接（例如 Gitee/Github 的原始数据链接）。此链接在每次打开应用时可自动更新内容。
-        </p>
-        <input style={inputStyle} type="text" placeholder="来源标签 (如 Gitee)" value={networkSource} onChange={e => setNetworkSource(e.target.value)} />
-        <input style={inputStyle} type="text" placeholder="网络 Raw URL" value={networkUrl} onChange={e => setNetworkUrl(e.target.value)} />
-        
-        <button 
-          onClick={handleNetworkSync}
-          disabled={syncing}
-          style={{ width: '100%', padding: '12px', background: 'var(--accent-gradient)', color: 'white', borderRadius: '12px', fontWeight: '600' }}
-        >
-          {syncing ? '同步中...' : '从网络路径同步'}
-        </button>
-      </div>
-
-      <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>📁 本地导入</h3>
-        
+        <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>📁 本地离线导入</h3>
         <div style={{ marginBottom: '20px' }}>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-            方法一：选择本地 Markdown 文件导入（文件名将自动作为标签）
+            方法一：选择本地 Markdown 文件（文件名即标签）
           </p>
           <input 
             type="file" 
@@ -176,7 +235,6 @@ export default function Settings() {
             style={{ width: '100%', padding: '8px', border: '1px dashed var(--accent)', borderRadius: '8px', cursor: 'pointer' }}
           />
         </div>
-
         <div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
             方法二：直接粘贴文本内容
@@ -184,14 +242,14 @@ export default function Settings() {
           <textarea 
             value={markdown}
             onChange={(e) => setMarkdown(e.target.value)}
-            placeholder="# 什么是艾宾浩斯遗忘曲线？\n\n描述了人类大脑对新事物遗忘的规律..."
+            placeholder="# 什么是艾宾浩斯遗忘曲线？\n\n描述了规律..."
             style={{ width: '100%', height: '80px', background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '12px', padding: '12px', resize: 'vertical', marginBottom: '12px' }}
           />
           <button 
             onClick={handleImport}
             style={{ width: '100%', padding: '12px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent)', border: '1px solid var(--accent)', borderRadius: '12px', fontWeight: '600' }}
           >
-            解析并导入剪贴板文本
+            解析并导入
           </button>
         </div>
       </div>
@@ -202,7 +260,7 @@ export default function Settings() {
           onClick={handleClear}
           style={{ width: '100%', padding: '12px', background: 'rgba(244, 63, 94, 0.1)', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: '12px', fontWeight: '600' }}
         >
-          清空所有数据
+          清空所有本地数据
         </button>
       </div>
     </div>

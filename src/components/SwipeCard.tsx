@@ -62,8 +62,9 @@ export default function SwipeCard({ card, onSwipe }: Props) {
   const handleDragEnd = async (_event: any, info: any) => {
     const offset = info.offset.y;
     const velocity = info.velocity.y;
-    const isDownSwipe = offset > 80 || velocity > 400;
-    const isUpSwipe = offset < -80 || velocity < -400;
+    // 极致优化：只需移动 30 像素，或者极小的拨动速度 (150)，都会判定成功
+    const isDownSwipe = offset > 30 || velocity > 150;
+    const isUpSwipe = offset < -30 || velocity < -150;
 
     if (isDownSwipe) {
       // 下滑：没记住
